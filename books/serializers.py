@@ -9,9 +9,34 @@ class AuthorSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug']
 
 class CategorySerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+    book_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = Category
-        fields = ['id', 'name', 'is_leaf']
+        fields = ['id', 'name', 'slug', 'is_leaf', 'parent', 'children', 'book_count', 'created_at']
+    
+    def get_children(self, obj):
+        children = Category.objects.filter(parent=obj)
+        return CategorySerializer(children, many=True, context=self.context).data
+    
+    def get_book_count(self, obj):
+        return obj.books.count()
+
+class CategoryTreeSerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+    book_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'slug', 'is_leaf', 'children', 'book_count']
+    
+    def get_children(self, obj):
+        children = Category.objects.filter(parent=obj)
+        return CategoryTreeSerializer(children, many=True, context=self.context).data
+    
+    def get_book_count(self, obj):
+        return obj.books.count()
 
 class BookImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,18 +62,22 @@ class BookSellerSerializer(serializers.ModelSerializer):
 
 class BookListSerializer(serializers.ModelSerializer):
     authors = AuthorSerializer(many=True, read_only=True)
-    categories = CategorySerializer(read_only=True)
+    categories = serializers.SerializerMethodField()
     images = BookImageSerializer(many=True, read_only=True)
     quantity_sold = serializers.SerializerMethodField()
     current_seller = serializers.SerializerMethodField()
+    
+    def get_categories(self, obj):
+        # Chỉ lấy thông tin cơ bản của categories
+        return [{'id': cat.id, 'name': cat.name, 'slug': cat.slug} for cat in obj.categories.all()]
     
     class Meta:
         model = Book
         fields = [
             'id', 'title', 'description', 'short_description',
             'list_price', 'original_price', 'rating_average',
-            'quantity_sold', 'book_cover', 'authors', 'categories',
-            'images', 'current_seller', 'is_featured'
+            'quantity_sold', 'stock_quantity', 'is_available', 'book_cover', 
+            'authors', 'categories', 'images', 'current_seller', 'is_featured'
         ]
     
     def get_quantity_sold(self, obj):
@@ -110,7 +139,7 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
         password = attrs.get('password')
-        
+            
         if email and password:
             user = authenticate(username=email, password=password)
             if not user:
@@ -119,6 +148,21 @@ class LoginSerializer(serializers.Serializer):
                 raise serializers.ValidationError('User account is disabled')
             attrs['user'] = user
         return attrs
+
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()
+    
+    def validate(self, attrs):
+        self.token = attrs['refresh_token']
+        return attrs
+    
+    def save(self, **kwargs):
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken
+            token = RefreshToken(self.token)
+            token.blacklist()
+        except Exception:
+            raise serializers.ValidationError('Invalid token')
 
 class CartItemSerializer(serializers.ModelSerializer):
     book = BookListSerializer(read_only=True)
@@ -173,11 +217,20 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             'notes', 'items'
         ]
     
+    # Trong OrderCreateSerializer.create():
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         user = self.context['request'].user
         
-        # Calculate total
+        # Kiểm tra stock trước khi tạo order
+        for item_data in items_data:
+            book = Book.objects.get(id=item_data['book_id'])
+            if book.stock_quantity < item_data['quantity']:
+                raise serializers.ValidationError(
+                    f'Sách "{book.title}" không đủ số lượng trong kho'
+                )
+        
+        # Tính total và tạo order
         total = 0
         for item_data in items_data:
             book = Book.objects.get(id=item_data['book_id'])
@@ -185,16 +238,26 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         
         validated_data['user'] = user
         validated_data['total_amount'] = total
-        order = Order.objects.create(**validated_data)
         
-        # Create order items
-        for item_data in items_data:
-            book = Book.objects.get(id=item_data['book_id'])
-            OrderItem.objects.create(
-                order=order,
-                book=book,
-                quantity=item_data['quantity'],
-                price=book.list_price
-            )
+        # Sử dụng transaction để đảm bảo atomicity
+        from django.db import transaction
+        with transaction.atomic():
+            order = Order.objects.create(**validated_data)
+            
+            # Tạo order items và cập nhật stock
+            for item_data in items_data:
+                book = Book.objects.select_for_update().get(id=item_data['book_id'])
+                OrderItem.objects.create(
+                    order=order,
+                    book=book,
+                    quantity=item_data['quantity'],
+                    price=book.list_price
+                )
+                # Trừ stock
+                book.stock_quantity -= item_data['quantity']
+                book.save()
+            
+            # Xóa cart sau khi đặt hàng thành công
+            user.cart.items.all().delete()
         
         return order

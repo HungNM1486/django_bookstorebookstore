@@ -7,7 +7,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from .models import *
 from .serializers import *
-from .serializers import LoginSerializer, UserCreateSerializer, UserSerializer
+from .serializers import LoginSerializer, UserCreateSerializer, UserSerializer, CategoryTreeSerializer
+from .pagination import CustomPageNumberPagination
 
 class AuthViewSet(viewsets.GenericViewSet):
     permission_classes = [AllowAny]
@@ -52,6 +53,20 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def profile(self, request):
         return Response(UserSerializer(request.user).data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        try:
+            refresh_token = request.data.get('refresh_token')
+            if not refresh_token:
+                return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            
+            return Response({'message': 'Đăng xuất thành công'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
 
 class BookViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
@@ -61,6 +76,7 @@ class BookViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'description', 'short_description', 'authors__name']
     ordering_fields = ['created_at', 'rating_average', 'quantity_sold', 'list_price']
+    pagination_class = CustomPageNumberPagination
     filterset_fields = ['categories__id', 'authors__id', 'is_featured']
     
     def get_serializer_class(self):
@@ -88,6 +104,61 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]
     
+    def get_serializer_class(self):
+        if self.action == 'tree':
+            return CategoryTreeSerializer
+        return CategorySerializer
+    
+    @action(detail=False, methods=['get'])
+    def tree(self, request):
+        """Lấy cây thư mục hoàn chỉnh"""
+        root_categories = Category.objects.filter(parent=None)
+        serializer = self.get_serializer(root_categories, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def children(self, request, pk=None):
+        """Lấy thư mục con của một thư mục"""
+        category = self.get_object()
+        children = Category.objects.filter(parent=category)
+        serializer = self.get_serializer(children, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def books(self, request, pk=None):
+        """Lấy sách theo thư mục (bao gồm cả thư mục con)"""
+        category = self.get_object()
+        include_children = request.query_params.get('include_children', 'true').lower() == 'true'
+        
+        if include_children:
+            # Lấy tất cả thư mục con
+            child_categories = self._get_all_children(category)
+            child_categories.append(category)
+            books = Book.objects.filter(
+                categories__in=child_categories,
+                is_active=True
+            ).distinct()
+        else:
+            # Chỉ lấy sách trong thư mục hiện tại
+            books = category.books.filter(is_active=True)
+        
+        # Áp dụng pagination
+        page = self.paginate_queryset(books)
+        if page is not None:
+            serializer = BookListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = BookListSerializer(books, many=True)
+        return Response(serializer.data)
+    
+    def _get_all_children(self, category):
+        """Lấy tất cả thư mục con (đệ quy)"""
+        children = []
+        for child in category.category_set.all():
+            children.append(child)
+            children.extend(self._get_all_children(child))
+        return children
+    
 class AuthorViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
@@ -96,7 +167,7 @@ class AuthorViewSet(viewsets.ReadOnlyModelViewSet):
 class CartViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     
-    def list(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):   
         cart = self.get_cart()
         serializer = CartSerializer(cart)
         return Response({'items': serializer.data['items']})
@@ -118,7 +189,20 @@ class CartViewSet(viewsets.GenericViewSet):
         quantity = request.data.get('quantity', 1)
         
         try:
-            book = Book.objects.get(id=book_id)
+            book = Book.objects.get(id=book_id, is_active=True)
+            
+            # Kiểm tra tồn kho
+            current_in_cart = CartItem.objects.filter(
+                cart=cart, book=book
+            ).first()
+            current_quantity = current_in_cart.quantity if current_in_cart else 0
+            total_requested = current_quantity + quantity
+            
+            if total_requested > book.stock_quantity:
+                return Response({
+                    'error': f'Chỉ còn {book.stock_quantity} sản phẩm trong kho'
+                }, status=400)
+            
             cart_item, created = CartItem.objects.get_or_create(
                 cart=cart, book=book,
                 defaults={'quantity': quantity}
@@ -127,12 +211,11 @@ class CartViewSet(viewsets.GenericViewSet):
                 cart_item.quantity += quantity
                 cart_item.save()
             
-            serializer = CartItemSerializer(cart_item)
-            return Response(serializer.data)
+            return Response(CartItemSerializer(cart_item).data)
         except Book.DoesNotExist:
-            return Response({'error': 'Book not found'}, status=404)
+            return Response({'error': 'Sách không tồn tại'}, status=404)
     
-    @action(detail=False, methods=['put'], url_path='(?P<book_id>[^/.]+)')
+    @action(detail=False, methods=['put'], url_path='update/(?P<book_id>[^/.]+)')
     def update_item(self, request, book_id=None):
         cart = self.get_cart()
         quantity = request.data.get('quantity')
@@ -147,7 +230,7 @@ class CartViewSet(viewsets.GenericViewSet):
         except CartItem.DoesNotExist:
             return Response({'error': 'Item not found'}, status=404)
     
-    @action(detail=False, methods=['delete'], url_path='(?P<book_id>[^/.]+)')
+    @action(detail=False, methods=['delete'], url_path='remove/(?P<book_id>[^/.]+)')
     def remove_item(self, request, book_id=None):
         cart = self.get_cart()
         try:

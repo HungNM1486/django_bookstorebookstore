@@ -1,0 +1,1244 @@
+{
+  "info": {
+    "_postman_id": "bookstore-api-collection",
+    "name": "Bookstore API Collection",
+    "description": "Collection đầy đủ để test API của hệ thống quản lý sách",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Đăng ký tài khoản",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"testpass123\",\n    \"confirm_password\": \"testpass123\",\n    \"role\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            },
+            "description": "Đăng ký tài khoản mới"
+          },
+          "response": []
+        },
+        {
+          "name": "Đăng nhập",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"testpass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            },
+            "description": "Đăng nhập và nhận access token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access_token);",
+                  "    pm.environment.set('refresh_token', response.refresh_token);",
+                  "    console.log('Token đã được lưu vào environment');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Xem thông tin profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile", ""]
+            },
+            "description": "Xem thông tin cá nhân của user đã đăng nhập"
+          },
+          "response": []
+        },
+        {
+          "name": "Đăng xuất",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout", ""]
+            },
+            "description": "Đăng xuất và blacklist refresh token"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến xác thực người dùng"
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "Lấy danh sách sách",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/?page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["books", ""],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lấy danh sách sách với phân trang"
+          },
+          "response": []
+        },
+        {
+          "name": "Tìm kiếm sách",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/?search=harry potter",
+              "host": ["{{base_url}}"],
+              "path": ["books", ""],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "harry potter"
+                }
+              ]
+            },
+            "description": "Tìm kiếm sách theo từ khóa"
+          },
+          "response": []
+        },
+        {
+          "name": "Lọc sách theo danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/?categories__id=1",
+              "host": ["{{base_url}}"],
+              "path": ["books", ""],
+              "query": [
+                {
+                  "key": "categories__id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Lọc sách theo ID danh mục"
+          },
+          "response": []
+        },
+        {
+          "name": "Sắp xếp sách theo giá",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/?ordering=list_price",
+              "host": ["{{base_url}}"],
+              "path": ["books", ""],
+              "query": [
+                {
+                  "key": "ordering",
+                  "value": "list_price"
+                }
+              ]
+            },
+            "description": "Sắp xếp sách theo giá tăng dần"
+          },
+          "response": []
+        },
+        {
+          "name": "Sắp xếp sách theo đánh giá",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/?ordering=-rating_average",
+              "host": ["{{base_url}}"],
+              "path": ["books", ""],
+              "query": [
+                {
+                  "key": "ordering",
+                  "value": "-rating_average"
+                }
+              ]
+            },
+            "description": "Sắp xếp sách theo đánh giá giảm dần"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy sách nổi bật",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/featured/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "featured", ""]
+            },
+            "description": "Lấy danh sách sách nổi bật (tối đa 8 cuốn)"
+          },
+          "response": []
+        },
+        {
+          "name": "Xem chi tiết sách",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}", ""]
+            },
+            "description": "Xem thông tin chi tiết của một cuốn sách"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy sách tương tự",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}/similar/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}", "similar", ""]
+            },
+            "description": "Lấy danh sách sách tương tự dựa trên danh mục"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến quản lý sách"
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Lấy danh sách danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/",
+              "host": ["{{base_url}}"],
+              "path": ["categories", ""]
+            },
+            "description": "Lấy tất cả danh mục sách"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy cây thư mục hoàn chỉnh",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/tree/",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "tree", ""]
+            },
+            "description": "Lấy cấu trúc cây thư mục hoàn chỉnh với thư mục con"
+          },
+          "response": []
+        },
+        {
+          "name": "Xem chi tiết danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}", ""]
+            },
+            "description": "Xem thông tin chi tiết của một danh mục"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy thư mục con",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}/children/",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}", "children", ""]
+            },
+            "description": "Lấy danh sách thư mục con của một thư mục cha"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy sách theo thư mục (bao gồm thư mục con)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}/books/?include_children=true&page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}", "books", ""],
+              "query": [
+                {
+                  "key": "include_children",
+                  "value": "true"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lấy sách theo thư mục, bao gồm cả sách trong thư mục con"
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy sách theo thư mục (chỉ thư mục hiện tại)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}/books/?include_children=false&page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}", "books", ""],
+              "query": [
+                {
+                  "key": "include_children",
+                  "value": "false"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lấy sách chỉ trong thư mục hiện tại, không bao gồm thư mục con"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến danh mục sách"
+    },
+    {
+      "name": "Authors",
+      "item": [
+        {
+          "name": "Lấy danh sách tác giả",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/authors/",
+              "host": ["{{base_url}}"],
+              "path": ["authors", ""]
+            },
+            "description": "Lấy tất cả tác giả"
+          },
+          "response": []
+        },
+        {
+          "name": "Xem chi tiết tác giả",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/authors/{{author_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["authors", "{{author_id}}", ""]
+            },
+            "description": "Xem thông tin chi tiết của một tác giả"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến tác giả"
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Xem giỏ hàng",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/cart_items/",
+              "host": ["{{base_url}}"],
+              "path": ["carts", "cart_items", ""]
+            },
+            "description": "Xem các sản phẩm trong giỏ hàng"
+          },
+          "response": []
+        },
+        {
+          "name": "Thêm sách vào giỏ hàng",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bookId\": \"{{book_id}}\",\n    \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/carts/add/",
+              "host": ["{{base_url}}"],
+              "path": ["carts", "add", ""]
+            },
+            "description": "Thêm sách vào giỏ hàng với số lượng"
+          },
+          "response": []
+        },
+        {
+          "name": "Cập nhật số lượng sách",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"quantity\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/carts/update/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["carts", "update", "{{book_id}}", ""]
+            },
+            "description": "Cập nhật số lượng sách trong giỏ hàng"
+          },
+          "response": []
+        },
+        {
+          "name": "Xóa sách khỏi giỏ hàng",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/remove/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["carts", "remove", "{{book_id}}", ""]
+            },
+            "description": "Xóa một sách khỏi giỏ hàng"
+          },
+          "response": []
+        },
+        {
+          "name": "Xóa toàn bộ giỏ hàng",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/carts/clear/",
+              "host": ["{{base_url}}"],
+              "path": ["carts", "clear", ""]
+            },
+            "description": "Xóa toàn bộ sản phẩm trong giỏ hàng"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến giỏ hàng"
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Lấy danh sách đơn hàng",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ""]
+            },
+            "description": "Lấy danh sách đơn hàng của user"
+          },
+          "response": []
+        },
+        {
+          "name": "Tạo đơn hàng mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_name\": \"Nguyễn Văn A\",\n    \"customer_email\": \"test@example.com\",\n    \"customer_phone\": \"0123456789\",\n    \"shipping_address\": \"123 Đường ABC, Quận 1, TP.HCM\",\n    \"payment_method\": \"cod\",\n    \"shipping_method\": \"standard\",\n    \"notes\": \"Giao hàng vào buổi sáng\",\n    \"items\": [\n        {\n            \"book_id\": \"{{book_id}}\",\n            \"quantity\": 2\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/",
+              "host": ["{{base_url}}"],
+              "path": ["orders", ""]
+            },
+            "description": "Tạo đơn hàng mới từ giỏ hàng"
+          },
+          "response": []
+        },
+        {
+          "name": "Xem chi tiết đơn hàng",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", ""]
+            },
+            "description": "Xem thông tin chi tiết của một đơn hàng"
+          },
+          "response": []
+        },
+        {
+          "name": "Hủy đơn hàng",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/cancel/",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "cancel", ""]
+            },
+            "description": "Hủy đơn hàng (chỉ khi status = confirmed)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API liên quan đến đơn hàng"
+    },
+    {
+      "name": "Users (Admin)",
+      "item": [
+        {
+          "name": "Lấy danh sách users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/?search=test",
+              "host": ["{{base_url}}"],
+              "path": ["users", ""],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "test"
+                }
+              ]
+            },
+            "description": "Lấy danh sách users (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Xem chi tiết user (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}", ""]
+            },
+            "description": "Xem thông tin chi tiết của một user (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API quản lý users (chỉ dành cho admin)"
+    },
+    {
+      "name": "Admin Dashboard",
+      "item": [
+        {
+          "name": "Thống kê tổng quan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/stats/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "dashboard", "stats", ""]
+            },
+            "description": "Lấy thống kê tổng quan cho admin dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Thống kê doanh thu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/revenue/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "dashboard", "revenue", ""]
+            },
+            "description": "Lấy thống kê doanh thu theo tháng và ngày"
+          },
+          "response": []
+        },
+        {
+          "name": "Thống kê đơn hàng gần đây",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/orders/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "dashboard", "orders", ""]
+            },
+            "description": "Lấy thống kê đơn hàng gần đây và theo trạng thái"
+          },
+          "response": []
+        }
+      ],
+      "description": "Các API dashboard cho admin"
+    },
+    {
+      "name": "Admin CRUD - Books",
+      "item": [
+        {
+          "name": "Tạo sách mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Sách mới\",\n    \"slug\": \"sach-moi\",\n    \"description\": \"Mô tả sách mới\",\n    \"short_description\": \"Mô tả ngắn\",\n    \"list_price\": 150000,\n    \"original_price\": 200000,\n    \"stock_quantity\": 50,\n    \"is_available\": true,\n    \"is_featured\": false,\n    \"authors\": [{{author_id}}],\n    \"categories\": [{{category_id}}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/books/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "books", ""]
+            },
+            "description": "Tạo sách mới (chỉ admin). Lưu ý: slug phải unique và không được để trống"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Sách Test Mới\",\n    \"slug\": \"sach-test-moi\",\n    \"description\": \"Mô tả sách test mới\",\n    \"short_description\": \"Mô tả ngắn\",\n    \"list_price\": 150000,\n    \"original_price\": 200000,\n    \"stock_quantity\": 50,\n    \"is_available\": true,\n    \"is_featured\": false,\n    \"authors\": [13992],\n    \"categories\": [316]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/books/",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "books", ""]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": \"148a0400-dd5f-4473-92c2-5fea0ef2cf71\",\n  \"title\": \"Sách Test Mới\",\n  \"description\": \"Mô tả sách test mới\",\n  \"short_description\": \"Mô tả ngắn\",\n  \"list_price\": \"150000.00\",\n  \"original_price\": \"200000.00\",\n  \"rating_average\": 0.0,\n  \"quantity_sold\": {\n    \"text\": \"Đã bán 0\",\n    \"value\": 0\n  },\n  \"stock_quantity\": 50,\n  \"is_available\": true,\n  \"book_cover\": \"\",\n  \"authors\": [],\n  \"categories\": [],\n  \"images\": [],\n  \"current_seller\": null,\n  \"is_featured\": false\n}\n\n// Lưu ý: authors và categories hiện tại hiển thị rỗng, cần kiểm tra logic serializer"
+            }
+          ]
+        },
+        {
+          "name": "Cập nhật sách",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Sách đã cập nhật\",\n    \"list_price\": 160000,\n    \"stock_quantity\": 60\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/books/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "books", "{{book_id}}", ""]
+            },
+            "description": "Cập nhật thông tin sách (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Xóa sách",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/books/{{book_id}}/delete/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "books", "{{book_id}}", "delete", ""]
+            },
+            "description": "Xóa sách (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "CRUD operations cho sách (chỉ admin)"
+    },
+    {
+      "name": "Admin CRUD - Categories",
+      "item": [
+        {
+          "name": "Tạo danh mục mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Danh mục mới\",\n    \"slug\": \"danh-muc-moi\",\n    \"description\": \"Mô tả danh mục mới\",\n    \"parent\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/categories/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "categories", ""]
+            },
+            "description": "Tạo danh mục mới (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cập nhật danh mục",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Danh mục đã cập nhật\",\n    \"description\": \"Mô tả đã cập nhật\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/categories/{{category_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "categories", "{{category_id}}", ""]
+            },
+            "description": "Cập nhật thông tin danh mục (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Xóa danh mục",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/categories/{{category_id}}/delete/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "categories", "{{category_id}}", "delete", ""]
+            },
+            "description": "Xóa danh mục (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "CRUD operations cho danh mục (chỉ admin)"
+    },
+    {
+      "name": "Admin CRUD - Orders",
+      "item": [
+        {
+          "name": "Lấy tất cả đơn hàng (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/orders/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "orders", ""],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "confirmed"
+                },
+                {
+                  "key": "search",
+                  "value": "test"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Lấy tất cả đơn hàng với filter và pagination (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cập nhật trạng thái đơn hàng",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"shipping\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/orders/{{order_id}}/status/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "orders", "{{order_id}}", "status", ""]
+            },
+            "description": "Cập nhật trạng thái đơn hàng (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "CRUD operations cho đơn hàng (chỉ admin)"
+    },
+    {
+      "name": "Admin CRUD - Users",
+      "item": [
+        {
+          "name": "Lấy tất cả users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", ""],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "user"
+                },
+                {
+                  "key": "search",
+                  "value": "test"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Lấy tất cả users với filter và pagination (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "CRUD operations cho users (chỉ admin)"
+    },
+    {
+      "name": "Admin Upload",
+      "item": [
+        {
+          "name": "Upload ảnh sách",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/upload/image/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "upload", "image", ""]
+            },
+            "description": "Upload ảnh sách (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload ảnh bìa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "cover",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/upload/cover/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "upload", "cover", ""]
+            },
+            "description": "Upload ảnh bìa sách (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload nhiều ảnh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/upload/multiple/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "upload", "multiple", ""]
+            },
+            "description": "Upload nhiều ảnh cùng lúc (chỉ admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "Xóa ảnh",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"filename\": \"book_images/example.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/upload/delete/",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "upload", "delete", ""]
+            },
+            "description": "Xóa ảnh (chỉ admin)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Upload APIs cho admin"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "author_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
